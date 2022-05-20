@@ -13,13 +13,14 @@ colors = ['red', 'green', 'blue', 'yellow', 'purple', 'black']
 # This just simulates reading from a socket.
 def data_listener():
     while True:
-        global sensors
+        global sensors, data
         for sensor in sensors:
             measurement = sensor.take_measurement()
             for i, measure in enumerate(measurement):
                 data[i].append(measure)
-                # if len(data[i]) > 50:
-                #     data[i].pop(0)
+                if len(data[i]) > 1000:
+                    data[i].clear()
+
 
             # print(measurement)
             # Do something with the data
