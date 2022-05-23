@@ -20,7 +20,7 @@ for sensor in sensors:
 
 limit = 500
 counter = 0
-figs, axs = plt.subplots(2, len(sensors))
+figs, axs = plt.subplots(2, len(sensors), figsize=(10, 6))
 
 
 def take_measurement():
@@ -41,15 +41,25 @@ def take_measurement():
 
 
 def update_graph(counter):
-    for i, sensor in enumerate(sensors):
-        axs[0][i].clear()
-        axs[1][i].clear()
-        axs[1][i].set_ylim([-500, 500])
-        axs[0][i].set_ylim([-5, 5])
-        for j in range(3):
-            axs[0][i].plot(xs[i][j], ys[i][j])
-        for j in range(3, 6):
-            axs[1][i].plot(xs[i][j], ys[i][j])
+    if len(sensors) > 1:
+        for i in range (len(sensors)):
+            axs[0][i].clear()
+            axs[1][i].clear()
+            axs[1][i].set_ylim([-500, 500])
+            axs[0][i].set_ylim([-5, 5])
+            for j in range(3):
+                axs[0][i].plot(xs[i][j], ys[i][j])
+            for j in range(3, 6):
+                axs[1][i].plot(xs[i][j], ys[i][j])
+    else:
+        axs[0].clear()
+        axs[1].clear()
+        axs[1].set_ylim([-500, 500])
+        axs[0].set_ylim([-5, 5])
+        for i in range(3):
+            axs[0].plot(xs[0][i], ys[0][i])
+        for i in range(3, 6):
+            axs[1].plot(xs[0][i], ys[0][i])
 
 
 ani = animation.FuncAnimation(figs, update_graph, interval=1/frame_rate)
