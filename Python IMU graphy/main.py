@@ -1,56 +1,69 @@
-from CreaTeBME import connect
-import matplotlib.pyplot as plt
+import sys
 import time
+
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import threading
-import random
+import numpy as np
 
-# AC:67:B2:38:77:86 WirelessIMU-7786
-# AC:67:B2:38:87:32 WirelessIMU-8732
+from CreaTeBME import connect
 
-data = [[] for i in range(6)]
-names = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
-colors = ['red', 'green', 'blue', 'yellow', 'purple', 'black']
-# This just simulates reading from a socket.
-def data_listener():
+frame_rate = 60
+sensors = connect()
+
+xs = []
+ys = []
+
+for sensor in sensors:
+    xs.append([[] for x in range(6)])
+    ys.append([[] for x in range(6)])
+
+limit = 500
+counter = 0
+figs, axs = plt.subplots(2, len(sensors), figsize=(10, 6))
+
+
+def take_measurement():
     while True:
-        global sensors, data
-        for sensor in sensors:
+        loop_time = time.perf_counter()
+        global counter
+        for i, sensor in enumerate(sensors):
             measurement = sensor.take_measurement()
-            for i, measure in enumerate(measurement):
-                data[i].append(measure)
-                if len(data[i]) > 1000:
-                    data[i].clear()
+            for j, measure in enumerate(measurement):
+                xs[i][j].append(counter)
+                ys[i][j].append(measure)
+                if len(xs[i][j]) > limit:
+                    xs[i][j].pop(0)
+                if len(ys[i][j]) > limit:
+                    ys[i][j].pop(0)
+        counter += 1
 
 
-            # print(measurement)
-            # Do something with the data
-def update_graph():
-    while True:
-        plt.pause(0.001)
-        # data_listener()
-        for i, dataPoint in enumerate(data[::]):
-            axs[0 if i < 3 else 1].plot(dataPoint, color=colors[i])
-            axs[0 if i < 3 else 1].set_xlim([len(dataPoint)-1000, len(dataPoint)])
 
-        # axs[0].legend(names[:3:])
-        # axs[1].legend(names[3::])
+def update_graph(counter):
+    if len(sensors) > 1:
+        for i in range (len(sensors)):
+            axs[0][i].clear()
+            axs[1][i].clear()
+            axs[1][i].set_ylim([-500, 500])
+            axs[0][i].set_ylim([-5, 5])
+            for j in range(3):
+                axs[0][i].plot(xs[i][j], ys[i][j])
+            for j in range(3, 6):
+                axs[1][i].plot(xs[i][j], ys[i][j])
+    else:
+        axs[0].clear()
+        axs[1].clear()
+        axs[1].set_ylim([-500, 500])
+        axs[0].set_ylim([-5, 5])
+        for i in range(3):
+            axs[0].plot(xs[0][i], ys[0][i])
+        for i in range(3, 6):
+            axs[1].plot(xs[0][i], ys[0][i])
 
-        plt.draw()
 
-if __name__ == '__main__':
-    global sensors
-    sensors = connect()
-    thread = threading.Thread(target=data_listener)
-    thread.daemon = True
-    thread.start()
-    #
-    # initialize figure
-    global fig, axs
-    fig, axs = plt.subplots(2)
-
-    # plt.figure()
-    # ln, = plt.plot([])
-    # plt.plot(data)
-    plt.ion()
-    plt.show()
-    update_graph()
+ani = animation.FuncAnimation(figs, update_graph, interval=1/frame_rate)
+thread = threading.Thread(target=take_measurement)
+thread.daemon = True
+thread.start()
+plt.show()
