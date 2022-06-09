@@ -34,6 +34,7 @@ def filterLow(values):
 
 
 def take_measurement():
+    old_time = time.perf_counter()
     while True:
         loop_time = time.perf_counter()
         global counter
@@ -50,13 +51,24 @@ def take_measurement():
             array = np.array(measurement[:2])
             normalizedVector = np.linalg.norm(array)
             ys[i][3].append(normalizedVector)
-
-
             xs[i][3].append(counter)
+            timeImpact.append(time.perf_counter())
             if len(xs[i][3]) > limit:
                 xs[i][3].pop(0)
             if len(ys[i][3]) > limit:
                 ys[i][3].pop(0)
+            if len(timeImpact) > limit:
+                timeImpact.pop(0)
+
+            # low pass filter and calculate step freq
+            if old_time + 5 < time.perf_counter():
+                global filteredImpact, peaks
+                old_time = time.perf_counter()
+                filteredImpact = [xs[0][3].copy(), filterLow(ys[0][3])]
+                deltaTime = timeImpact[-1] - timeImpact[0]
+                # print(deltaTime)
+                peaks = signal.find_peaks(filteredImpact[1], height=2.8, distance=25)
+                print((len(peaks[0])*2)/deltaTime * 60)
 
         # print(signal.find_peaks(ys[0][1])[0])  # , height=35, distance=0.3*512))
         counter += 1
@@ -82,16 +94,16 @@ def update_graph(counter):
         axs[1].grid(True)
         axs[0].grid(True)
         # for i in range(3):
-        # axs[0].plot(xs[0][1], ys[0][1])
-        # axs[0].plot(xs[0][0], ys[0][0])
+        axs[0].plot(xs[0][1], ys[0][1])
+        axs[0].plot(xs[0][0], ys[0][0])
         # print(filteredImpact)
-        axs[0].plot(filteredImpact[0], filteredImpact[1])
-
         axs[1].plot(xs[0][3], ys[0][3])
+        axs[1].plot(filteredImpact[0], filteredImpact[1])
 
-        # peaks = signal.find_peaks(ys[0][1], height=2)
-        # for i in peaks[0]:
-        #     axs[0].add_patch(plt.Circle((xs[0][1][i], ys[0][1][i]), 0.5, alpha=0.6))
+        # peaks = signal.find_peaks(filteredImpact[1], height=3)
+        for i in peaks[0]:
+            p = axs[1].add_patch(plt.Circle((filteredImpact[0][i], filteredImpact[1][i]), 0.5, alpha=1))
+            p.set_color((0, 1, 0))
         # for i in range(3, 6):
         #     axs[1].plot(xs[0][i], ys[0][i])
 
@@ -104,12 +116,14 @@ if __name__ == '__main__':
     ys = []
 
     filteredImpact = [[0], [0]]
+    timeImpact = []
 
     for sensor in sensors:
         xs.append([[] for i in range(4)])
         ys.append([[] for x in range(4)])
 
     limit = 500
+    peaks = [[],[]]
     counter = 0
     figs, axs = plt.subplots(2, len(sensors), figsize=(10, 6))
 
