@@ -27,11 +27,12 @@ def filterLow(values):
 def httpRequest(url):
     try:
         try:
-            requests.get(f"http://192.168.4.1/{url}", timeout=0.0000000001)
+            requests.get(f"http://192.168.4.1/{url}", timeout=0.2)  # , timeout=0.0000000001)
         except requests.exceptions.ReadTimeout:
             pass
     except requests.exceptions.ConnectTimeout:
         print(f"NOT CONNECT TO ESP")
+
 
 def calc_stride_freq(i):
     global filteredImpact, peaks, stride_freq
@@ -45,9 +46,11 @@ def calc_stride_freq(i):
     # first get the average stride freq of the user for a minute
     if calibrationStartTime + calibrationTime > time.perf_counter():
         stride_freqs.append(stride_freq)
+        print(time.perf_counter() - (calibrationStartTime + calibrationTime))
     else:  # then give feedback on it
         #  compare the current stride_freq with the sum(stride_freq)/len(stride_freq). als het 10% verschil heeft dan feedback.
-        average_impact_calibration = np.average(np.asarray(stride_freqs))
+
+        average_impact_calibration = sum(stride_freqs) / len(stride_freqs)  # np.average(np.asarray(stride_freqs))
         print(f"{average_impact_calibration = }, {stride_freq = }, {average_impact_calibration * 0.1 = }")
         if abs(average_impact_calibration - stride_freq) > average_impact_calibration * 0.1:
             url = 'smaller'
@@ -84,8 +87,10 @@ def take_measurement():
             if len(timeImpact) > limit:
                 timeImpact.pop(0)
 
+            if time.perf_counter() - startTime < startDelay:
+                print(int(startDelay - (time.perf_counter() - startTime)))
             # low pass filter and calculate step freq
-            if old_time + 5 < time.perf_counter() and i == 0 and time.perf_counter() - startTime >= 1:
+            if old_time + 5 < time.perf_counter() and i == 0 and time.perf_counter() - startTime >= startDelay:
                 old_time = time.perf_counter()
                 calc_stride_freq(i)
 
@@ -154,8 +159,9 @@ if __name__ == '__main__':
     stride_freqs=[]
 
     startTime = time.perf_counter()
-    calibrationTime = 20  # 60*3
-    calibrationStartTime = time.perf_counter()
+    startDelay = 30
+    calibrationTime = 60  # 60*3
+    calibrationStartTime = time.perf_counter() + startDelay
     httpRequest('calibrate')
 
     figs, axs = plt.subplots(2, len(sensors), figsize=(10, 6))
