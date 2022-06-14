@@ -4,6 +4,13 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+numpy = "*"
+termcolor = "*"
+matplotlib = "*"
+scipy = "*"
+colorama = "*"
+requests = "*"
+createbme = "*"
 
 [dev-packages]
 
