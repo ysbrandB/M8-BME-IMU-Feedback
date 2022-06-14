@@ -57,11 +57,40 @@ def calc_stride_freq(i):
             if average_impact_calibration < stride_freq:
                 url = 'bigger'
             httpRequest(url)
-            print(f"http://192.168.4.1/{url}")
+            # print(f"http://192.168.4.1/{url}")
+
+
+def calc_shock_attenuation(leg, hip):
+    steps = 10
+    # reference = 80
+    sAtt = (1 - hip / leg) * 100
+    if sAtt > 0:
+        att_list.append(sAtt)
+    if len(att_list) > steps:
+        att_list.pop(0)
+
+    attAverage = 0
+
+    for x in range(len(att_list)):
+        attAverage += att_list[x] / len(att_list)
+
+    return attAverage
+
+
+def impact_attenuation():
+    global foot_peaks, head_peaks
+    foot_peaks = signal.find_peaks(ys[0][3], height=2.5)
+    head_peaks = signal.find_peaks(ys[1][3], height=1.5)
+    for f, h in zip(foot_peaks[0], head_peaks[0]):
+        print(calc_shock_attenuation(ys[0][3][f], ys[1][3][h]))
+        print(ys[0][3][f], ys[1][3][h])
 
 
 def take_measurement():
     old_time = time.perf_counter()
+    impacts_foot = []
+    shock_attenuation = []
+
     while True:
         loop_time = time.perf_counter()
         global counter
@@ -75,10 +104,12 @@ def take_measurement():
                 if len(ys[i][j]) > limit:
                     ys[i][j].pop(0)
 
-            array = np.array(measurement[:2])
-            normalizedVector = np.linalg.norm(array)
-            ys[i][3].append(normalizedVector)
+            array = np.array(measurement[:3])
+            normalized_vector = np.linalg.norm(array)
+
+            ys[i][3].append(normalized_vector)
             xs[i][3].append(counter)
+
             timeImpact.append(time.perf_counter())
             if len(xs[i][3]) > limit:
                 xs[i][3].pop(0)
@@ -95,15 +126,15 @@ def take_measurement():
 
                 # low pass filter and calculate step freq
                 calc_stride_freq(i)
+                impact_attenuation()
+        # print(peaks[0][1])
 
-        # print(signal.find_peaks(ys[0][1])[0])  # , height=35, distance=0.3*512))
         counter += 1
-
 
 
 def update_graph(counter):
     if len(sensors) > 1:
-        for i in range (len(sensors)):
+        for i in range(len(sensors)):
             axs[0][i].clear()
             axs[1][i].clear()
             axs[1][i].set_ylim([0, 10])
@@ -115,13 +146,13 @@ def update_graph(counter):
 
         axs[1][0].plot(xs[0][3], ys[0][3])
         axs[1][0].plot(filteredImpact[0], filteredImpact[1])
-
+        axs[1][1].plot(xs[1][3], ys[1][3])
         for i in peaks[0]:
-            roots = [-1, 1, 2]
             axs[1][0].plot(filteredImpact[0][i], filteredImpact[1][i], ls="", marker="o", label="points", color=(1, 0, 1))
-            # axs[1][0].plot(vals, poly, markevery=mark, ls="", marker="o", label="points")
             # p = axs[1][0].add_patch(plt.Circle((filteredImpact[0][i], filteredImpact[1][i]), 0.5, alpha=1))
             # p.set_color((1, 0, 1))
+        # for i in head_peaks[0]:
+        #     axs[1][1].plot(xs[1][3][i], ys[1][3][i], ls="", marker="o", label="points", color=(1, 0, 1))
 
     else:
         axs[0].clear()
@@ -157,11 +188,14 @@ if __name__ == '__main__':
         ys.append([[] for x in range(4)])
 
     limit = 500
-    peaks = [[],[]]
+    peaks = [[], []]
+    foot_peaks = [[], []]
+    head_peaks = [[], []]
+    att_list = []
     counter = 0
     stride_freq = 0
 
-    stride_freqs=[]
+    stride_freqs = []
 
     startTime = time.perf_counter()
     startDelay = 30
@@ -171,7 +205,7 @@ if __name__ == '__main__':
 
     figs, axs = plt.subplots(2, len(sensors), figsize=(10, 6))
 
-    ani = animation.FuncAnimation(figs, update_graph, interval=1/frame_rate)
+    ani = animation.FuncAnimation(figs, update_graph, interval=1 / frame_rate)
     thread = threading.Thread(target=take_measurement, daemon=True)
     thread.start()
     plt.show()
