@@ -131,13 +131,5 @@ if __name__ == '__main__':
 
     ani = animation.FuncAnimation(figs, update_graph, interval=1/frame_rate)
     thread = threading.Thread(target=take_measurement, daemon=True)
-    # thread_filtered = threading.Thread(target=filtering, daemon=True)
-    # thread.daemon = True
-    # thread_filtered.daemon = True
-
-    # setup code:
-    # weight = input("What is your weight? ")
-
     thread.start()
-    # thread_filtered.start()
     plt.show()
