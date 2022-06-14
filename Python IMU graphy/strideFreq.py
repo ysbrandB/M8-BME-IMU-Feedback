@@ -47,7 +47,7 @@ def calc_stride_freq(i):
         stride_freqs.append(stride_freq)
     else:  # then give feedback on it
         #  compare the current stride_freq with the sum(stride_freq)/len(stride_freq). als het 10% verschil heeft dan feedback.
-        average_impact_calibration = np.asarray(stride_freqs)
+        average_impact_calibration = np.average(np.asarray(stride_freqs))
         print(f"{average_impact_calibration = }, {stride_freq = }, {average_impact_calibration * 0.1 = }")
         if abs(average_impact_calibration - stride_freq) > average_impact_calibration * 0.1:
             url = 'smaller'
