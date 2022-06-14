@@ -27,27 +27,30 @@ def filterLow(values):
 def httpRequest(url):
     try:
         try:
-            requests.get(f"http://192.168.4.1/{url}", timeout=0.0000000001)
+            requests.get(f"http://192.168.4.1/{url}", timeout=0.2)  # , timeout=0.0000000001)
         except requests.exceptions.ReadTimeout:
-            pass
+            print(f"couldn't send to sensor")
     except requests.exceptions.ConnectTimeout:
         print(f"NOT CONNECT TO ESP")
+
 
 def calc_stride_freq(i):
     global filteredImpact, peaks, stride_freq
     filteredImpact = [xs[i][3].copy(), filterLow(ys[i][3])]
     deltaTime = timeImpact[-1] - timeImpact[0]
     # print(deltaTime)
-    peaks = signal.find_peaks(filteredImpact[1], height=2.8, distance=25)
+    peaks = signal.find_peaks(filteredImpact[1], height=2.5, distance=10)
     stride_freq = (len(peaks[0])) / deltaTime * 60
     # print(f"{stride_freq = }")
 
     # first get the average stride freq of the user for a minute
     if calibrationStartTime + calibrationTime > time.perf_counter():
         stride_freqs.append(stride_freq)
+        print(f"{int(-time.perf_counter() - (calibrationStartTime + calibrationTime))}, {stride_freqs}")
     else:  # then give feedback on it
         #  compare the current stride_freq with the sum(stride_freq)/len(stride_freq). als het 10% verschil heeft dan feedback.
-        average_impact_calibration = np.average(np.asarray(stride_freqs))
+
+        average_impact_calibration = sum(stride_freqs) / len(stride_freqs)  # np.average(np.asarray(stride_freqs))
         print(f"{average_impact_calibration = }, {stride_freq = }, {average_impact_calibration * 0.1 = }")
         if abs(average_impact_calibration - stride_freq) > average_impact_calibration * 0.1:
             url = 'smaller'
@@ -84,9 +87,13 @@ def take_measurement():
             if len(timeImpact) > limit:
                 timeImpact.pop(0)
 
-            # low pass filter and calculate step freq
-            if old_time + 5 < time.perf_counter() and i == 0 and time.perf_counter() - startTime >= 1:
+            if old_time + 5 < time.perf_counter() and i == 0 and time.perf_counter() - startTime >= startDelay:
                 old_time = time.perf_counter()
+
+                if time.perf_counter() - startTime < startDelay:
+                    print(int(startDelay - (time.perf_counter() - startTime)))
+
+                # low pass filter and calculate step freq
                 calc_stride_freq(i)
 
         # print(signal.find_peaks(ys[0][1])[0])  # , height=35, distance=0.3*512))
@@ -110,8 +117,11 @@ def update_graph(counter):
         axs[1][0].plot(filteredImpact[0], filteredImpact[1])
 
         for i in peaks[0]:
-            p = axs[1][0].add_patch(plt.Circle((filteredImpact[0][i], filteredImpact[1][i]), 0.5, alpha=1))
-            p.set_color((0, 1, 0))
+            roots = [-1, 1, 2]
+            axs[1][0].plot(filteredImpact[0][i], filteredImpact[1][i], ls="", marker="o", label="points", color=(1, 0, 1))
+            # axs[1][0].plot(vals, poly, markevery=mark, ls="", marker="o", label="points")
+            # p = axs[1][0].add_patch(plt.Circle((filteredImpact[0][i], filteredImpact[1][i]), 0.5, alpha=1))
+            # p.set_color((1, 0, 1))
 
     else:
         axs[0].clear()
@@ -129,7 +139,7 @@ def update_graph(counter):
 
         for i in peaks[0]:
             p = axs[1].add_patch(plt.Circle((filteredImpact[0][i], filteredImpact[1][i]), 0.5, alpha=1))
-            p.set_color((0, 1, 0))
+            p.set_color((1, 0, 1))
 
 
 if __name__ == '__main__':
@@ -154,8 +164,9 @@ if __name__ == '__main__':
     stride_freqs=[]
 
     startTime = time.perf_counter()
-    calibrationTime = 20  # 60*3
-    calibrationStartTime = time.perf_counter()
+    startDelay = 30
+    calibrationTime = 60  # 60*3
+    calibrationStartTime = time.perf_counter() + startDelay
     httpRequest('calibrate')
 
     figs, axs = plt.subplots(2, len(sensors), figsize=(10, 6))
