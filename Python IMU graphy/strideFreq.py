@@ -35,9 +35,13 @@ def filterLow(values):
 
 def take_measurement():
     old_time = time.perf_counter()
+    impacts_foot = []
+    shock_attenuation = []
+
     while True:
         loop_time = time.perf_counter()
         global counter, stride_freq
+        peaks = [[],[]]
         for i, sensor in enumerate(sensors):
             measurement = sensor.take_measurement()
             for j, measure in enumerate(measurement[:3:]):
@@ -50,6 +54,7 @@ def take_measurement():
 
             array = np.array(measurement[:2])
             normalizedVector = np.linalg.norm(array)
+
             ys[i][3].append(normalizedVector)
             xs[i][3].append(counter)
             timeImpact.append(time.perf_counter())
@@ -62,7 +67,7 @@ def take_measurement():
 
             # low pass filter and calculate step freq
             if old_time + 5 < time.perf_counter() and i == 0:
-                global filteredImpact, peaks
+                global filteredImpact
                 old_time = time.perf_counter()
                 filteredImpact = [xs[i][3].copy(), filterLow(ys[i][3])]
                 deltaTime = timeImpact[-1] - timeImpact[0]
@@ -72,10 +77,37 @@ def take_measurement():
                 print(f"{stride_freq = }")
 
         # print(signal.find_peaks(ys[0][1])[0])  # , height=35, distance=0.3*512))
+        impacts_foot = [ys[0][3][i] for i in peaks[0]]
+        # average_impact_foot = sum(impacts_foot) / len(impacts_foot)
+
+        impacts_waist = [ys[1][3][i] for i in peaks[0]]
+
+        for i in impacts_foot:
+            shock_attenuation = (1- impacts_waist[i] / impacts_foot[i]) *100
+        # average_impact_waist = sum(impacts_waist) / len(impacts_waist)
+        # impacts_waist = [normalizedVector for i in peaks[0][1::2]]
+        # average_impact_waist = sum(impacts_waist)/len(impacts_waist)
+
+        # impacts_head_z = [df_head['acc_z'][i] for i in peaks_head_z[0][1::2]]
+        # average_impact_head_z = sum(impacts_head_z) / len(impacts_head_z)
+
+        print(impacts_foot)
+        # print(f"{impacts_waist = :0.4f} m/s^2")
+        # print(shock_attenuation)
+
+        # print(f"total impact head = {math.sqrt(math.pow(average_impact_head_x, 2) + math.pow(average_impact_head_z, 2)):0.4f} m/s^2")
+        # print(signal.find_peaks(ys[0][1])[0])  # , height=35, distance=0.3*512))
+
         counter += 1
 
+        # global filteredImpact
 
-
+        # old_time = time.perf_counter()
+        # while True:
+        #     if old_time + 0.5 < time.perf_counter():
+        #         old_time = time.perf_counter()
+        #         filteredImpact = [filterLow([0][3]), filterLow(ys[0][3])]
+        #     print(f"{len(filteredImpact[0]) = }, {len(filteredImpact[1]) = }")
 def update_graph(counter):
     if len(sensors) > 1:
         for i in range (len(sensors)):
@@ -118,6 +150,11 @@ if __name__ == '__main__':
 
     filteredImpact = [[0], [0]]
     timeImpact = []
+
+    # impacts_foot = []
+    # impacts_waist = []
+    #
+    # shock_attenuation = []
 
     for sensor in sensors:
         xs.append([[] for i in range(4)])
