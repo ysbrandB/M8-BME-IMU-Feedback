@@ -27,7 +27,8 @@ def filterLow(values):
 def httpRequest(url):
     try:
         try:
-            requests.get(f"http://192.168.4.1/{url}", timeout=0.0000000001)
+            # requests.get(f"http://192.168.4.1/{url}", timeout=0.0000000001)
+            pass
         except requests.exceptions.ReadTimeout:
             pass
     except requests.exceptions.ConnectTimeout:
@@ -56,6 +57,30 @@ def calc_stride_freq(i):
             httpRequest(url)
             print(f"http://192.168.4.1/{url}")
 
+def calc_shock_attenuation(i, measurement):
+    global peaks
+
+    array = np.array(measurement[:2])
+    normalized_vector = np.linalg.norm(array)
+
+    ys[i][3].append(normalized_vector)
+    xs[i][3].append(counter)
+
+    # print(signal.find_peaks(ys[0][1])[0])  # , height=35, distance=0.3*512))
+    impacts_foot = [ys[0][3][i] for i in peaks[0]]
+    # average_impact_foot = sum(impacts_foot) / len(impacts_foot)
+    impacts_waist = [ys[1][3][i] for i in peaks[0]]
+
+    # shock_attenuation = (1 - impacts_waist[i] / impacts_foot[i]) * 100
+
+    # average_impact_waist = sum(impacts_waist) / len(impacts_waist)
+
+    # average_impact_waist = sum(impacts_waist)/len(impacts_waist)
+
+    print(impacts_foot)
+
+    # print(f"{impacts_waist = :0.4f} m/s^2")
+    # print(shock_attenuation)
 
 def take_measurement():
     old_time = time.perf_counter()
@@ -76,11 +101,7 @@ def take_measurement():
                 if len(ys[i][j]) > limit:
                     ys[i][j].pop(0)
 
-            array = np.array(measurement[:2])
-            normalizedVector = np.linalg.norm(array)
 
-            ys[i][3].append(normalizedVector)
-            xs[i][3].append(counter)
             timeImpact.append(time.perf_counter())
             if len(xs[i][3]) > limit:
                 xs[i][3].pop(0)
@@ -93,25 +114,9 @@ def take_measurement():
             if old_time + 5 < time.perf_counter() and i == 0 and time.perf_counter() - startTime >= 1:
                 old_time = time.perf_counter()
                 calc_stride_freq(i)
+                # calc_shock_attenuation(i, measurement)
 
-        # print(signal.find_peaks(ys[0][1])[0])  # , height=35, distance=0.3*512))
-        impacts_foot = [ys[0][3][i] for i in peaks[0]]
-        # average_impact_foot = sum(impacts_foot) / len(impacts_foot)
 
-        impacts_waist = [ys[1][3][i] for i in peaks[0]]
-
-        for i in impacts_foot:
-            shock_attenuation = (1- impacts_waist[i] / impacts_foot[i]) *100
-        # average_impact_waist = sum(impacts_waist) / len(impacts_waist)
-        # impacts_waist = [normalizedVector for i in peaks[0][1::2]]
-        # average_impact_waist = sum(impacts_waist)/len(impacts_waist)
-
-        # impacts_head_z = [df_head['acc_z'][i] for i in peaks_head_z[0][1::2]]
-        # average_impact_head_z = sum(impacts_head_z) / len(impacts_head_z)
-
-        print(impacts_foot)
-        # print(f"{impacts_waist = :0.4f} m/s^2")
-        # print(shock_attenuation)
 
         # print(f"total impact head = {math.sqrt(math.pow(average_impact_head_x, 2) + math.pow(average_impact_head_z, 2)):0.4f} m/s^2")
         # print(signal.find_peaks(ys[0][1])[0])  # , height=35, distance=0.3*512))
