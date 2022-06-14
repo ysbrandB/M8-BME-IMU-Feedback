@@ -99,8 +99,8 @@ def impact_attenuation():
     else:  # then give feedback on it
         calibration_avg = sum(attCalibration_list) / len(attCalibration_list)
         print(f"attenuation: {att_average = }, calibration average = {calibration_avg}")
-        log.append(f"time: {time.perf_counter()},\tESP message:{'WARN' if att_average < calibration_avg * 0.9 else '     '},\tattenuation: {att_average = },\tcalibration average = {calibration_avg}\n")
-        if att_average < calibration_avg * 0.9:  # if the average is smaller than 10 of the calibration average
+        log.append(f"time: {time.perf_counter()},\tESP message:{'WARN' if att_average > calibration_avg * 0.9 else '     '},\tattenuation: {att_average = },\tcalibration average = {calibration_avg}\n")
+        if att_average > calibration_avg * 0.9:  # if the average is smaller than 10 of the calibration average
             httpRequest('warn')
 
 
@@ -243,3 +243,7 @@ if __name__ == '__main__':
 def endProgram():  # called when the red cross has been pressed
     with open("log.txt", "w") as file1:  # Writing data to log file
         file1.writelines(log)
+    print_green("stored log")
+
+    Wifi.connectToWifi('eduroam')
+    print_green("reconecting to eduroam")
