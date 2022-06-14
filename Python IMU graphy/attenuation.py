@@ -24,7 +24,6 @@ limit = 500
 counter = 0
 figs, axs = plt.subplots(3, len(sensors), figsize=(10, 6))
 
-
 def take_measurement():
     while True:
         loop_time = time.perf_counter()
@@ -38,8 +37,6 @@ def take_measurement():
                     xs[i][j].pop(0)
                 if len(ys[i][j]) > limit:
                     ys[i][j].pop(0)
-
-            stride_length(i, measurement)
             xs[i][6].append(counter)
             if len(xs[i][6]) > limit:
                 xs[i][6].pop(0)
@@ -48,19 +45,23 @@ def take_measurement():
         counter += 1
 
 
-def attenuation(s1, s2):
+att_list = []
+def Danger(s1, s2):
     sensorLeg = s1
     sensorHip = s2
-    Satt = (1 - sensorLeg/sensorHip) * 100
-    return Satt
-
-att_list = []
-def Danger(Satt):
+    Satt = (1 - sensorLeg / sensorHip) * 100
+    stepRange = 10
+    percentageChange = 10
     att_list.append(Satt)
-    attAverage = 0
-    for x in range(len(att_list)):
-        attAverage += att_list[x]/len(att_list)
-    if attAverage < 80:
+    attStartAverage = 0
+    attEndAverage = 0
+    if len(att_list) > stepRange:
+        for x in range(stepRange):
+            attStartAverage += att_list[x]/stepRange
+        for x in range(stepRange):
+            attEndAverage += att_list[len(att_list)-x]/stepRange
+
+    if attEndAverage < attStartAverage - (attStartAverage / 100 * percentageChange):
         return True
     else:
         return False
