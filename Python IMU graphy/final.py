@@ -11,7 +11,7 @@ from scipy import signal
 import numpy as np
 from CreaTeBME import connect
 import Wifi
-from Logging import print_error, print_waring, print_green, print_blue
+from Logging import print_error, print_waring, print_green, print_blue, print_cyan
 
 # acc: x, y, z. Gyro: x, y, z
 
@@ -29,6 +29,7 @@ def filterLow(values):
 def httpRequest(url):
     try:
         try:
+            print_cyan(f"send to esp: {url}")
             requests.get(f"http://192.168.4.1/{url}", timeout=0.2)  # , timeout=0.0000000001)
         except requests.exceptions.ReadTimeout:
             print_waring(f"couldn't send to sensor")
@@ -67,18 +68,45 @@ def calc_stride_freq(i):
     else:  # then give feedback on it
         #  compare the current stride_freq with the sum(stride_freq)/len(stride_freq). als het 10% verschil heeft dan feedback.
         average_impact_calibration = sum(stride_freqs) / len(stride_freqs)  # np.average(np.asarray(stride_freqs))
-        log.append(f"{stride_freq},")
+        log.append(f"time: {time.perf_counter()},\tESP message:{'     ' if not abs(average_impact_calibration - stride_freq) > average_impact_calibration * 0.1 else ('bigger' if average_impact_calibration < stride_freq else 'smaller')},\t{stride_freq = },\t{average_impact_calibration = }\n")
         print(f"{average_impact_calibration = }, {stride_freq = }, {average_impact_calibration * 0.1 = }")
         if abs(average_impact_calibration - stride_freq) > average_impact_calibration * 0.1:
             url = 'smaller'
             if average_impact_calibration < stride_freq:
                 url = 'bigger'
             httpRequest(url)
-            print(f"http://192.168.4.1/{url}")
+
+
+def impact_attenuation():
+    global foot_peaks, head_peaks
+    foot_peaks = signal.find_peaks(ys[0][3], height=2.5)
+    head_peaks = signal.find_peaks(ys[1][3], height=1.5)
+
+    att_list = []
+    for leg, hip in zip(foot_peaks[0], head_peaks[0]):
+        sAtt = (1 - hip / leg) * 100
+
+        if sAtt > 0:
+            att_list.append(sAtt)
+
+    att_average = 0
+    if len(att_list) > 0:
+        att_average = sum(att_list) / len(att_list)
+
+    if calibration:  # first find the average
+        attCalibration_list.append(att_average)
+        log.append(f"time: {time.perf_counter()},\tattenuation: {sum(attCalibration_list) / len(attCalibration_list)},\tarray: {attCalibration_list}\n")
+    else:  # then give feedback on it
+        calibration_avg = sum(attCalibration_list) / len(attCalibration_list)
+        print(f"attenuation: {att_average = }, calibration average = {calibration_avg}")
+        log.append(f"time: {time.perf_counter()},\tESP message:{'WARN' if att_average < calibration_avg * 0.9 else '     '},\tattenuation: {att_average = },\tcalibration average = {calibration_avg}\n")
+        if att_average < calibration_avg * 0.9:  # if the average is smaller than 10 of the calibration average
+            httpRequest('warn')
 
 
 def take_measurement():
     old_time = time.perf_counter()
+
     while True:
         loop_time = time.perf_counter()
         global counter
@@ -92,10 +120,12 @@ def take_measurement():
                 if len(ys[i][j]) > limit:
                     ys[i][j].pop(0)
 
-            array = np.array(measurement[:2])
-            normalizedVector = np.linalg.norm(array)
-            ys[i][3].append(normalizedVector)
+            array = np.array(measurement[:3])
+            normalized_vector = np.linalg.norm(array)
+
+            ys[i][3].append(normalized_vector)
             xs[i][3].append(counter)
+
             timeImpact.append(time.perf_counter())
             if len(xs[i][3]) > limit:
                 xs[i][3].pop(0)
@@ -104,14 +134,16 @@ def take_measurement():
             if len(timeImpact) > limit:
                 timeImpact.pop(0)
 
-            if old_time + 5 < time.perf_counter() and i == 0 and time.perf_counter() - startTime >= startDelay:
-                old_time = time.perf_counter()
-                # low pass filter and calculate step freq
-                calc_stride_freq(i)
-            elif time.perf_counter() - startTime < startDelay and i == 0 and old_time + 5 < time.perf_counter():
-                # visual count down for in the console, per every 5 sec
-                old_time = time.perf_counter()
-                print(int(startDelay - (time.perf_counter() - startTime)))
+        if old_time + 5 < time.perf_counter() and time.perf_counter() - startTime >= startDelay:
+            old_time = time.perf_counter()
+            # calculate the impact attenuation between waist and foot
+            impact_attenuation()
+            # low pass filter and calculate step freq
+            calc_stride_freq(0)
+        elif time.perf_counter() - startTime < startDelay and old_time + 5 < time.perf_counter():
+            # visual count down for in the console, per every 5 sec
+            old_time = time.perf_counter()
+            print(int(startDelay - (time.perf_counter() - startTime)))
 
         counter += 1
 
@@ -130,9 +162,9 @@ def update_graph(counter):
 
         axs[1][0].plot(xs[0][3], ys[0][3])
         axs[1][0].plot(filteredImpact[0], filteredImpact[1])
+        axs[1][1].plot(xs[1][3], ys[1][3])
 
         for i in peaks[0]:
-            roots = [-1, 1, 2]
             axs[1][0].plot(filteredImpact[0][i], filteredImpact[1][i], ls="", marker="o", label="points", color=(1, 0, 1))
             # axs[1][0].plot(vals, poly, markevery=mark, ls="", marker="o", label="points")
             # p = axs[1][0].add_patch(plt.Circle((filteredImpact[0][i], filteredImpact[1][i]), 0.5, alpha=1))
@@ -153,8 +185,7 @@ def update_graph(counter):
         axs[1].plot(filteredImpact[0], filteredImpact[1])
 
         for i in peaks[0]:
-            p = axs[1].add_patch(plt.Circle((filteredImpact[0][i], filteredImpact[1][i]), 0.5, alpha=1))
-            p.set_color((1, 0, 1))
+            axs[1].plot(filteredImpact[0][i], filteredImpact[1][i], ls="", marker="o", label="points", color=(1, 0, 1))
 
 
 if __name__ == '__main__':
@@ -179,6 +210,10 @@ if __name__ == '__main__':
 
     limit = 500
     peaks = [[], []]
+    foot_peaks = [[], []]
+    head_peaks = [[], []]
+    attCalibration_list = []
+
     counter = 0
     stride_freq = 0
 
@@ -200,7 +235,7 @@ if __name__ == '__main__':
     thread = threading.Thread(target=take_measurement, daemon=True)
     thread.start()
     print_green("Starting graph.....")
-    print_blue("------------ Staring up ------------")
+    print_blue("------------ Starting up ------------")
     plt.show()
 
 

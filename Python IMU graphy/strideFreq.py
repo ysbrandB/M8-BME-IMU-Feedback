@@ -78,11 +78,12 @@ def calc_shock_attenuation(leg, hip):
 
 
 def impact_attenuation():
-    global foot_peaks
+    global foot_peaks, head_peaks
     foot_peaks = signal.find_peaks(ys[0][3], height=2.5)
-    for j in foot_peaks[0]:
-        print(calc_shock_attenuation(ys[0][3][j], ys[1][3][j]))
-        print(ys[0][3][j], ys[1][3][j])
+    head_peaks = signal.find_peaks(ys[1][3], height=1.5)
+    for f, h in zip(foot_peaks[0], head_peaks[0]):
+        print(calc_shock_attenuation(ys[0][3][f], ys[1][3][h]))
+        print(ys[0][3][f], ys[1][3][h])
 
 
 def take_measurement():
@@ -150,6 +151,8 @@ def update_graph(counter):
             axs[1][0].plot(filteredImpact[0][i], filteredImpact[1][i], ls="", marker="o", label="points", color=(1, 0, 1))
             # p = axs[1][0].add_patch(plt.Circle((filteredImpact[0][i], filteredImpact[1][i]), 0.5, alpha=1))
             # p.set_color((1, 0, 1))
+        # for i in head_peaks[0]:
+        #     axs[1][1].plot(xs[1][3][i], ys[1][3][i], ls="", marker="o", label="points", color=(1, 0, 1))
 
     else:
         axs[0].clear()
@@ -186,6 +189,8 @@ if __name__ == '__main__':
 
     limit = 500
     peaks = [[], []]
+    foot_peaks = [[], []]
+    head_peaks = [[], []]
     att_list = []
     counter = 0
     stride_freq = 0
