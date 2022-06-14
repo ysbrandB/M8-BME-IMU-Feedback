@@ -37,7 +37,7 @@ def take_measurement():
     old_time = time.perf_counter()
     while True:
         loop_time = time.perf_counter()
-        global counter
+        global counter, stride_freq
         for i, sensor in enumerate(sensors):
             measurement = sensor.take_measurement()
             for j, measure in enumerate(measurement[:3:]):
@@ -61,14 +61,15 @@ def take_measurement():
                 timeImpact.pop(0)
 
             # low pass filter and calculate step freq
-            if old_time + 5 < time.perf_counter():
+            if old_time + 5 < time.perf_counter() and i == 0:
                 global filteredImpact, peaks
                 old_time = time.perf_counter()
-                filteredImpact = [xs[0][3].copy(), filterLow(ys[0][3])]
+                filteredImpact = [xs[i][3].copy(), filterLow(ys[i][3])]
                 deltaTime = timeImpact[-1] - timeImpact[0]
                 # print(deltaTime)
                 peaks = signal.find_peaks(filteredImpact[1], height=2.8, distance=25)
-                print((len(peaks[0])*2)/deltaTime * 60)
+                stride_freq = (len(peaks[0])*2)/deltaTime * 60
+                print(f"{stride_freq = }")
 
         # print(signal.find_peaks(ys[0][1])[0])  # , height=35, distance=0.3*512))
         counter += 1
@@ -125,6 +126,7 @@ if __name__ == '__main__':
     limit = 500
     peaks = [[],[]]
     counter = 0
+    stride_freq = 0
     figs, axs = plt.subplots(2, len(sensors), figsize=(10, 6))
 
     ani = animation.FuncAnimation(figs, update_graph, interval=1/frame_rate)
