@@ -32,7 +32,7 @@ def httpRequest(url):
             print_cyan(f"send to esp: {url}")
             requests.get(f"http://192.168.4.1/{url}", timeout=0.2)  # , timeout=0.0000000001)
         except requests.exceptions.ReadTimeout:
-            # print_waring(f"couldn't send to sensor")
+            print_waring(f"couldn't send to sensor")
             pass
     except requests.exceptions.ConnectTimeout:
         print_error(f"NOT CONNECT TO ESP")
