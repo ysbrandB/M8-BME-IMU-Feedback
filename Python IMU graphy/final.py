@@ -32,7 +32,8 @@ def httpRequest(url):
             print_cyan(f"send to esp: {url}")
             requests.get(f"http://192.168.4.1/{url}", timeout=0.2)  # , timeout=0.0000000001)
         except requests.exceptions.ReadTimeout:
-            print_waring(f"couldn't send to sensor")
+            # print_waring(f"couldn't send to sensor")
+            pass
     except requests.exceptions.ConnectTimeout:
         print_error(f"NOT CONNECT TO ESP")
 
@@ -99,9 +100,10 @@ def impact_attenuation():
     else:  # then give feedback on it
         calibration_avg = sum(attCalibration_list) / len(attCalibration_list)
         print(f"attenuation: {att_average = }, calibration average = {calibration_avg}")
-        log.append(f"time: {time.perf_counter()},\tESP message:{'WARN' if att_average > calibration_avg * 0.9 else '     '},\tattenuation: {att_average = },\tcalibration average = {calibration_avg}\n")
-        if att_average > calibration_avg * 0.9:  # if the average is smaller than 10 of the calibration average
-            httpRequest('warn')
+        log.append(f"time: {time.perf_counter()},\tESP message:{'WARN' if att_average < calibration_avg * 0.8 else '     '},\tattenuation: {att_average = },\tcalibration average = {calibration_avg}\n")
+        if att_average < calibration_avg * 0.8:  # if the average is smaller than 10 of the calibration average
+            # httpRequest('warn')
+            pass
 
 
 def take_measurement():
@@ -221,7 +223,7 @@ if __name__ == '__main__':
 
     startTime = time.perf_counter()
     startDelay = 30
-    calibrationTime = 60  # 60*3
+    calibrationTime = 30  # 60*3
     calibration = True
     calibrating = False
     calibrationStartTime = time.perf_counter() + startDelay
